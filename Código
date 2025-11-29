@@ -1,0 +1,424 @@
+package A3;
+
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
+
+/*
+ *
+ * @author helen
+ */
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.text.MaskFormatter;
+import java.awt.*;
+import java.sql.*;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class A3 extends JFrame {
+
+    // ============================= BANCO DE DADOS =============================
+    static final String URL = "jdbc:sqlite:" + System.getProperty("user.dir") + "/gym.db";
+
+    public static Connection connect() throws SQLException {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            JOptionPane.showMessageDialog(null, "Driver SQLite não encontrado!");
+        }
+        return DriverManager.getConnection(URL);
+    }
+
+    public static void initializeDB() {
+        try (Connection conn = connect(); Statement st = conn.createStatement()) {
+
+            st.execute("CREATE TABLE IF NOT EXISTS students (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "name TEXT, cpf TEXT, birth TEXT, phone TEXT, email TEXT);");
+
+            st.execute("CREATE TABLE IF NOT EXISTS trainings (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "student_id INTEGER," +
+                    "type TEXT, description TEXT, duration INTEGER, startDate TEXT," +
+                    "FOREIGN KEY(student_id) REFERENCES students(id));");
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Erro ao inicializar o banco de dados!");
+        }
+    }
+
+    // ============================= MODELOS =============================
+    static class Student {
+        int id;
+        String name, cpf, birth, phone, email;
+        @Override
+        public String toString() { return name; }
+    }
+
+    static class Training {
+        int id, studentId, duration;
+        String type, description, startDate;
+    }
+
+    // ============================= DAO STUDENT =============================
+    static class StudentDAO {
+
+        void insert(Student s) {
+            try (Connection conn = connect();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "INSERT INTO students(name,cpf,birth,phone,email) VALUES(?,?,?,?,?)"
+                 )) {
+                ps.setString(1, s.name);
+                ps.setString(2, s.cpf);
+                ps.setString(3, s.birth);
+                ps.setString(4, s.phone);
+                ps.setString(5, s.email);
+                ps.executeUpdate();
+            } catch (SQLException e) {}
+        }
+
+        List<Student> listAll() {
+            List<Student> list = new ArrayList<>();
+            try (Connection conn = connect();
+                 ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM students")) {
+
+                while (rs.next()) {
+                    Student s = new Student();
+                    s.id = rs.getInt("id");
+                    s.name = rs.getString("name");
+                    s.cpf = rs.getString("cpf");
+                    s.birth = rs.getString("birth");
+                    s.phone = rs.getString("phone");
+                    s.email = rs.getString("email");
+                    list.add(s);
+                }
+
+            } catch (SQLException e) {}
+            return list;
+        }
+
+        void update(Student s) {
+            try (Connection conn = connect();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "UPDATE students SET name=?,cpf=?,birth=?,phone=?,email=? WHERE id=?"
+                 )) {
+
+                ps.setString(1, s.name);
+                ps.setString(2, s.cpf);
+                ps.setString(3, s.birth);
+                ps.setString(4, s.phone);
+                ps.setString(5, s.email);
+                ps.setInt(6, s.id);
+                ps.executeUpdate();
+
+            } catch (SQLException e) {}
+        }
+
+        void delete(int id) {
+            try (Connection conn = connect();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "DELETE FROM students WHERE id=?"
+                 )) {
+                ps.setInt(1, id);
+                ps.executeUpdate();
+            } catch (SQLException e) {}
+        }
+    }
+
+    // ============================= DAO TRAINING =============================
+    static class TrainingDAO {
+
+        void insert(Training t) {
+            try (Connection conn = connect();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "INSERT INTO trainings(student_id,type,description,duration,startDate) VALUES(?,?,?,?,?)"
+                 )) {
+                ps.setInt(1, t.studentId);
+                ps.setString(2, t.type);
+                ps.setString(3, t.description);
+                ps.setInt(4, t.duration);
+                ps.setString(5, t.startDate);
+                ps.executeUpdate();
+            } catch (SQLException e) {}
+        }
+
+        List<Training> listByStudent(int id) {
+            List<Training> list = new ArrayList<>();
+
+            try (Connection conn = connect();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT * FROM trainings WHERE student_id=?"
+                 )) {
+
+                ps.setInt(1, id);
+                ResultSet rs = ps.executeQuery();
+
+                while (rs.next()) {
+                    Training t = new Training();
+                    t.id = rs.getInt("id");
+                    t.studentId = rs.getInt("student_id");
+                    t.type = rs.getString("type");
+                    t.description = rs.getString("description");
+                    t.duration = rs.getInt("duration");
+                    t.startDate = rs.getString("startDate");
+                    list.add(t);
+                }
+
+            } catch (SQLException e) {}
+
+            return list;
+        }
+    }
+
+    // ============================= TELA PRINCIPAL =============================
+    public A3() {
+        setTitle("Sistema Academia (CRUD Completo)");
+        setSize(400, 200);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        initializeDB();
+
+        JButton b1 = new JButton("Gerenciar Alunos");
+        JButton b2 = new JButton("Gerenciar Treinos");
+
+        b1.addActionListener(e -> new TelaAlunos());
+        b2.addActionListener(e -> new TelaTreinos());
+
+        setLayout(new FlowLayout());
+        add(b1);
+        add(b2);
+        setVisible(true);
+    }
+
+    // ============================= TELA ALUNOS =============================
+    class TelaAlunos extends JFrame {
+
+        JTable table = new JTable();
+        StudentDAO dao = new StudentDAO();
+
+        TelaAlunos() {
+            setTitle("Alunos");
+            setSize(800, 400);
+            setLocationRelativeTo(null);
+
+            JButton novo = new JButton("Novo");
+            JButton editar = new JButton("Editar");
+            JButton excluir = new JButton("Excluir");
+
+            novo.addActionListener(e -> abrirFormulario(null));
+
+            editar.addActionListener(e -> {
+                int row = table.getSelectedRow();
+                if (row < 0) return;
+                Student s = pegarAlunoTabela(row);
+                abrirFormulario(s);
+            });
+
+            excluir.addActionListener(e -> {
+                int row = table.getSelectedRow();
+                if (row < 0) return;
+                int id = Integer.parseInt(table.getValueAt(row, 0).toString());
+                dao.delete(id);
+                carregarTabela();
+            });
+
+            JPanel botoes = new JPanel();
+            botoes.add(novo);
+            botoes.add(editar);
+            botoes.add(excluir);
+
+            add(new JScrollPane(table), BorderLayout.CENTER);
+            add(botoes, BorderLayout.SOUTH);
+
+            carregarTabela();
+            setVisible(true);
+        }
+
+        Student pegarAlunoTabela(int row) {
+            Student s = new Student();
+            s.id = Integer.parseInt(table.getValueAt(row, 0).toString());
+            s.name = table.getValueAt(row, 1).toString();
+            s.cpf = table.getValueAt(row, 2).toString();
+            s.birth = table.getValueAt(row, 3).toString();
+            s.phone = table.getValueAt(row, 4).toString();
+            s.email = table.getValueAt(row, 5).toString();
+            return s;
+        }
+
+        void carregarTabela() {
+            List<Student> lista = dao.listAll();
+            DefaultTableModel m = new DefaultTableModel(
+                    new Object[]{"ID", "Nome", "CPF", "Nascimento", "Telefone", "Email"}, 0
+            );
+
+            for (Student s : lista) {
+                m.addRow(new Object[]{
+                        s.id, s.name, s.cpf, s.birth, s.phone, s.email
+                });
+            }
+
+            table.setModel(m);
+        }
+
+        // ================= FORMULÁRIO DE ALUNO =================
+        void abrirFormulario(Student s) {
+            JDialog d = new JDialog(this, true);
+            d.setSize(350, 400);
+            d.setLayout(new GridLayout(7, 2));
+
+            // ----------- Máscaras CPF / TELEFONE -----------
+            MaskFormatter cpfMask = null;
+            MaskFormatter phoneMask = null;
+
+            try {
+                cpfMask = new MaskFormatter("###.###.###-##");
+                cpfMask.setPlaceholderCharacter('_');
+
+                phoneMask = new MaskFormatter("(##) ####-####");
+                phoneMask.setPlaceholderCharacter('_');
+            } catch (ParseException ex) {
+            }
+
+            JFormattedTextField cpf = new JFormattedTextField(cpfMask);
+            cpf.setText(s == null ? "" : s.cpf);
+
+            JFormattedTextField phone = new JFormattedTextField(phoneMask);
+            phone.setText(s == null ? "" : s.phone);
+
+            JTextField name = new JTextField(s == null ? "" : s.name);
+            JTextField birth = new JTextField(s == null ? "" : s.birth);
+            JTextField email = new JTextField(s == null ? "" : s.email);
+
+            // ----- corrigindo o erro da variável final -----
+            Student alunoOriginal = s;
+
+            JButton salvar = new JButton("Salvar");
+            salvar.addActionListener(e -> {
+
+                Student st = (alunoOriginal == null ? new Student() : alunoOriginal);
+
+                st.name = name.getText();
+                st.cpf = cpf.getText();
+                st.birth = birth.getText();
+                st.phone = phone.getText();
+                st.email = email.getText();
+
+                if (alunoOriginal == null) dao.insert(st);
+                else dao.update(st);
+
+                carregarTabela();
+                d.dispose();
+            });
+
+            d.add(new JLabel("Nome:")); d.add(name);
+            d.add(new JLabel("CPF:")); d.add(cpf);
+            d.add(new JLabel("Nascimento:")); d.add(birth);
+            d.add(new JLabel("Telefone:")); d.add(phone);
+            d.add(new JLabel("Email:")); d.add(email);
+            d.add(salvar);
+
+            d.setLocationRelativeTo(this);
+            d.setVisible(true);
+        }
+    }
+
+    // ============================= TELA TREINOS =============================
+    class TelaTreinos extends JFrame {
+
+        JComboBox<Student> cbAlunos = new JComboBox<>();
+        JTable table = new JTable();
+
+        StudentDAO studentDAO = new StudentDAO();
+        TrainingDAO trainingDAO = new TrainingDAO();
+
+        TelaTreinos() {
+            setTitle("Treinos");
+            setSize(800, 400);
+            setLocationRelativeTo(null);
+
+            for (Student s : studentDAO.listAll())
+                cbAlunos.addItem(s);
+
+            cbAlunos.addActionListener(e -> carregarTreinos());
+
+            JButton novo = new JButton("Novo Treino");
+            novo.addActionListener(e -> abrirFormulario());
+
+            JPanel top = new JPanel();
+            top.add(new JLabel("Aluno:"));
+            top.add(cbAlunos);
+            top.add(novo);
+
+            add(top, BorderLayout.NORTH);
+            add(new JScrollPane(table), BorderLayout.CENTER);
+
+            carregarTreinos();
+            setVisible(true);
+        }
+
+        void carregarTreinos() {
+            Student s = (Student) cbAlunos.getSelectedItem();
+            if (s == null) return;
+
+            List<Training> lista = trainingDAO.listByStudent(s.id);
+
+            DefaultTableModel m = new DefaultTableModel(
+                    new Object[]{"ID", "Tipo", "Descrição", "Duração", "Data"}, 0
+            );
+
+            for (Training t : lista) {
+                m.addRow(new Object[]{
+                        t.id, t.type, t.description, t.duration, t.startDate
+                });
+            }
+
+            table.setModel(m);
+        }
+
+        void abrirFormulario() {
+            Student s = (Student) cbAlunos.getSelectedItem();
+            if (s == null) return;
+
+            JDialog d = new JDialog(this, true);
+            d.setSize(350, 300);
+            d.setLayout(new GridLayout(6, 2));
+
+            JTextField type = new JTextField();
+            JTextField desc = new JTextField();
+            JTextField duration = new JTextField();
+            JTextField date = new JTextField();
+
+            JButton salvar = new JButton("Salvar");
+            salvar.addActionListener(e -> {
+                Training t = new Training();
+                t.studentId = s.id;
+                t.type = type.getText();
+                t.description = desc.getText();
+                t.duration = Integer.parseInt(duration.getText());
+                t.startDate = date.getText();
+
+                trainingDAO.insert(t);
+                carregarTreinos();
+                d.dispose();
+            });
+
+            d.add(new JLabel("Tipo:")); d.add(type);
+            d.add(new JLabel("Descrição:")); d.add(desc);
+            d.add(new JLabel("Duração:")); d.add(duration);
+            d.add(new JLabel("Data Início:")); d.add(date);
+            d.add(salvar);
+
+            d.setLocationRelativeTo(this);
+            d.setVisible(true);
+        }
+    }
+
+    // ============================= MAIN =============================
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(A3::new);
+    }
+}
