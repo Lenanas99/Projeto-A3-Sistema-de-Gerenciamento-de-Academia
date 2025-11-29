@@ -1,1 +1,21 @@
+/*Pedaço do código original onde se localiza a criação da estrutura do Banco de Ddos em SQL*/
+
+public static void initializeDB() {
+    try (Connection conn = connect(); Statement st = conn.createStatement()) {
+
+        st.execute("CREATE TABLE IF NOT EXISTS students (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT, cpf TEXT, birth TEXT, phone TEXT, email TEXT);");
+
+        st.execute("CREATE TABLE IF NOT EXISTS trainings (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "student_id INTEGER," +
+                "type TEXT, description TEXT, duration INTEGER, startDate TEXT," +
+                "FOREIGN KEY(student_id) REFERENCES students(id));");
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        JOptionPane.showMessageDialog(null, "Erro ao inicializar o banco de dados!");
+    }
+}
 
