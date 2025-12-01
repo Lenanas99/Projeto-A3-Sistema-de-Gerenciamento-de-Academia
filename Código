@@ -20,7 +20,7 @@ import java.util.List;
 
 public class A3 extends JFrame {
 
-    // ============================= BANCO DE DADOS =============================
+    /* BANCO DE DADOS */
     static final String URL = "jdbc:sqlite:" + System.getProperty("user.dir") + "/gym.db";
 
     public static Connection connect() throws SQLException {
@@ -50,7 +50,7 @@ public class A3 extends JFrame {
         }
     }
 
-    // ============================= MODELOS =============================
+    /* MODELOS */
     static class Student {
         int id;
         String name, cpf, birth, phone, email;
@@ -63,7 +63,7 @@ public class A3 extends JFrame {
         String type, description, startDate;
     }
 
-    // ============================= DAO STUDENT =============================
+    /* DAO STUDENT */
     static class StudentDAO {
 
         void insert(Student s) {
@@ -128,7 +128,7 @@ public class A3 extends JFrame {
         }
     }
 
-    // ============================= DAO TRAINING =============================
+    /* DAO TRAINING */
     static class TrainingDAO {
 
         void insert(Training t) {
@@ -173,7 +173,7 @@ public class A3 extends JFrame {
         }
     }
 
-    // ============================= TELA PRINCIPAL =============================
+    /* TELA PRINCIPAL */
     public A3() {
         setTitle("Sistema Academia (CRUD Completo)");
         setSize(400, 200);
@@ -194,7 +194,7 @@ public class A3 extends JFrame {
         setVisible(true);
     }
 
-    // ============================= TELA ALUNOS =============================
+    /* TELA ALUNOS */
     class TelaAlunos extends JFrame {
 
         JTable table = new JTable();
@@ -264,13 +264,13 @@ public class A3 extends JFrame {
             table.setModel(m);
         }
 
-        // ================= FORMULÁRIO DE ALUNO =================
+        /* FORMULÁRIO DE ALUNO */
         void abrirFormulario(Student s) {
             JDialog d = new JDialog(this, true);
             d.setSize(350, 400);
             d.setLayout(new GridLayout(7, 2));
 
-            // ----------- Máscaras CPF / TELEFONE -----------
+            /* Máscaras CPF / TELEFONE */
             MaskFormatter cpfMask = null;
             MaskFormatter phoneMask = null;
 
@@ -293,7 +293,7 @@ public class A3 extends JFrame {
             JTextField birth = new JTextField(s == null ? "" : s.birth);
             JTextField email = new JTextField(s == null ? "" : s.email);
 
-            // ----- corrigindo o erro da variável final -----
+            /* corrigindo o erro da variável final */
             Student alunoOriginal = s;
 
             JButton salvar = new JButton("Salvar");
@@ -326,7 +326,7 @@ public class A3 extends JFrame {
         }
     }
 
-    // ============================= TELA TREINOS =============================
+    /* TELA TREINOS */
     class TelaTreinos extends JFrame {
 
         JComboBox<Student> cbAlunos = new JComboBox<>();
@@ -417,7 +417,7 @@ public class A3 extends JFrame {
         }
     }
 
-    // ============================= MAIN =============================
+    /* MAIN */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(A3::new);
     }
